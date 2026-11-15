@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IDX Multibagger Screener</title>
+<style>
+:root{--bg:#f3f5f2;--sf:#fff;--tx:#17211b;--mu:#66736b;--ln:#d8dfd9;--ac:#0d6b4f;--hi:#e8f3ee;--wn:#a86a00;--bd:#b3261e}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1512;--sf:#161e19;--tx:#e6ede8;--mu:#8c9a91;--ln:#26332b;--ac:#4fc79c;--hi:#1a2a22;--wn:#e0a030;--bd:#f0776f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 "Segoe UI",system-ui,sans-serif}
+header{padding:20px 24px 8px}h1{margin:0;font:700 26px Georgia,serif;letter-spacing:-.01em}
+header p{margin:2px 0 0;color:var(--mu);max-width:78ch}
+.warn{margin:8px 24px;padding:8px 12px;border-left:3px solid var(--wn);background:var(--sf);color:var(--mu);font-size:13px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;padding:10px 24px}
+.bar label{display:flex;flex-direction:column;font-size:12px;color:var(--mu);gap:2px}
+input,select,button{font:inherit;padding:6px 8px;border:1px solid var(--ln);border-radius:4px;background:var(--sf);color:var(--tx)}
+input{width:90px}button{cursor:pointer}button.p{background:var(--ac);color:var(--bg);border-color:var(--ac);font-weight:600}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ac)}
+.wrap{margin:0 24px 24px;overflow-x:auto;border:1px solid var(--ln);background:var(--sf);border-radius:4px}
+table{border-collapse:collapse;width:100%;min-width:1350px}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--ln);white-space:nowrap}
+th{cursor:pointer;color:var(--mu);font-weight:600;position:sticky;top:0;background:var(--sf)}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+tr:hover td{background:var(--hi)}
+.sc{font-weight:700;font-size:15px}.bg{padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600}
+.k{background:var(--ac);color:var(--bg)}.m{background:var(--hi);color:var(--wn);border:1px solid var(--wn)}.l{color:var(--mu)}
+.bar2{display:inline-block;height:6px;background:var(--ac);border-radius:3px;vertical-align:middle;margin-right:6px}
+.pr{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:4px 24px 10px}.pr label{display:flex;flex-direction:column;font-size:12px;color:var(--mu)}input[type=range]{width:110px;padding:0;accent-color:var(--ac)}
+details{margin:0 24px 24px;color:var(--mu)}summary{cursor:pointer;color:var(--tx);font-weight:600}
+details table{min-width:0;margin-top:8px}details td,details th{text-align:left;cursor:default;position:static}
+</style></head><body>
+<header><h1>IDX Multibagger Screener</h1>
+<p>Menilai saham Indonesia dengan skor 0–100 dari kualitas, pertumbuhan, valuasi, dan ukuran perusahaan, ditambah peringkat Magic Formula.</p></header>
+<div class="warn" id="note">Data bawaan hanya CONTOH ilustrasi. Di aplikasi EXE, klik “Cari otomatis” untuk memindai saham IDX langsung dari Yahoo Finance (butuh internet, beberapa menit).</div>
+<div class="bar">
+<label>Skor min<input id="fs" type="number" value="0"></label>
+<label>ROE min %<input id="fr" type="number" value="0"></label>
+<label>DER maks<input id="fd" type="number" value="99" step=".1"></label>
+<label>PER maks<input id="fp" type="number" value="99"></label>
+<label>Mcap maks (T)<input id="fm" type="number" value="9999"></label>
+<label>Sektor<select id="fx"><option value="">Semua</option></select></label>
+<label>Cari<input id="fq" placeholder="kode"></label><label>F-Score min<input id="ff" type="number" value="0" min="0" max="9"></label><label>Nilai transaksi min (Rp M/hari)<input id="fl" type="number" value="0" step=".5" style="width:130px"></label>
+<label>Kode tambahan<input id="fe" placeholder="ESSA, MAPI" style="width:140px"></label><button class="p" id="sc">Cari otomatis</button><button id="up">Update harga</button><button id="im">Impor CSV</button><button id="ex">Ekspor CSV</button><button id="rs">Reset</button>
+<input type="file" id="fi" accept=".csv" hidden>
+</div>
+<div class="pr"><b>Bobot skor</b><select id="ps"></select><span id="wp" class="pr" style="padding:0"></span><span id="ws" style="color:var(--mu)"></span></div>
+<div class="wrap"><table><thead><tr id="hd"></tr></thead><tbody id="tb"></tbody></table></div>
+<details><summary>Rumus skor</summary>
+<table><tr><th>Komponen</th><th>Aturan (bobot bisa diatur, otomatis dinormalisasi ke 100)</th></tr>
+<tr><td>Kualitas</td><td>ROE (penuh di ≥20%), margin bersih (penuh di ≥15%), DER (≤0,5 terbaik; &gt;2 nol)</td></tr>
+<tr><td>Pertumbuhan</td><td>CAGR pendapatan 3 th (penuh di ≥20%) dan CAGR EPS 3 th (penuh di ≥25%)</td></tr>
+<tr><td>Valuasi</td><td>PEG = PER ÷ CAGR EPS (≤1 terbaik) dan PBV (≤3 terbaik)</td></tr>
+<tr><td>Ukuran</td><td>Mcap &lt;3T nilai penuh, &lt;10T tinggi, &lt;30T rendah. Perusahaan kecil lebih mudah berlipat, tetapi lebih berisiko.</td></tr>
+<tr><td>Piotroski</td><td>F-Score 0–9 dibagi 9. Isi dari 9 sinyal: ROA positif, arus kas operasi positif, ROA naik, arus kas &gt; laba, leverage turun, current ratio naik, tanpa saham baru, gross margin naik, perputaran aset naik.</td></tr>
+<tr><td>Magic Formula</td><td>Peringkat earnings yield (1/PER) + peringkat ROIC (Greenblatt). Semakin kecil semakin baik. Abaikan untuk bank.</td></tr>
+<tr><td>Label</td><td>“Kandidat kuat” butuh skor ≥70, F-Score ≥5, dan nilai transaksi ≥ Rp 1 M/hari. Skor ≥55 atau gagal syarat tadi = “Pantau”, sisanya “Lewati”.</td></tr>
+<tr><td>Catatan</td><td>Peringatan otomatis: likuiditas rendah, DER tinggi, laba turun, F-Score lemah.</td></tr></table>
+<p>Format CSV: ticker,sektor,harga,mcap_T,roe,npm,der,rev_cagr,eps_cagr,per,pbv,roic,fscore,nilai_transaksi_M. Dua kolom terakhir opsional. Nilai transaksi diisi otomatis oleh “Update harga” (rata-rata 60 hari). Skor adalah alat penyaring, bukan saran investasi.</p></details>
+<script>
+const SAMPLE=[["AAAA","Energi",1850,4.2,24,14,.4,22,30,7,1.6,26,8,12],["BBBB","Konsumer",640,2.1,19,9,.7,18,28,9,1.7,18,7,3.5],["CCCC","Teknologi",420,6.5,16,12,.2,35,40,18,3.1,17,6,8],["DDDD","Industri",2900,8.9,21,11,.9,15,19,10,2,20,7,6],["EEEE","Properti",980,12.4,12,18,1.1,8,10,11,1.2,11,5,4],["FFFF","Kesehatan",3100,15.8,18,13,.3,12,15,22,3.8,19,7,9],["GGGG","Bank",5200,95,17,28,6,9,11,13,2.2,0,6,150],["HHHH","Tambang",1400,2.8,31,22,.5,40,55,5,1.4,34,9,.6],["IIII","Ritel",780,3.6,22,7,.8,20,25,12,2.4,21,7,5],["JJJJ","Konsumer",2200,40,15,10,1.4,6,7,17,2.6,14,5,30],["KKKK","Logistik",530,1.4,27,15,.3,25,32,6,1.5,29,8,1.5],["LLLL","Telko",3600,60,14,12,1.9,4,5,15,2,9,4,80]];
+const WN=["Kualitas","Pertumbuhan","Valuasi","Ukuran","Piotroski"],PR={"Seimbang":[25,30,20,10,15],"Agresif: growth + small cap":[15,40,15,20,10],"Kualitas dan aman":[35,20,25,5,15]};
+const H=[["t","Kode"],["sec","Sektor"],["px","Harga"],["mc","Mcap (T)"],["roe","ROE %"],["npm","NPM %"],["der","DER"],["rg","Rev CAGR %"],["eg","EPS CAGR %"],["per","PER"],["peg","PEG"],["pbv","PBV"],["roic","ROIC %"],["f","F-Score"],["val","Nilai/hari (Rp M)"],["mf","Magic F."],["hi52","% dari High52"],["s","Skor"],["lb","Label"],["rf","Catatan"]];
+const K="idx_ms_v2";let rows=JSON.parse(localStorage.getItem(K)||"null")||SAMPLE.map(mk),W=JSON.parse(localStorage.getItem(K+"w")||"null")||[25,30,20,10,15],sk="s",sd=-1;
+const UNI="ACES ADRO AKRA AMMN AMRT ANTM ARTO ASII AUTO BBCA BBNI BBRI BBTN BMRI BRIS BRPT BUKA CPIN CTRA DSNG ELSA EMTK ERAA ESSA EXCL GOTO HEAL HRUM ICBP INCO INDF INKP INTP ISAT ITMG JPFA JSMR KLBF LSIP MAPI MBMA MDKA MEDC MIKA MNCN MYOR NCKL PGAS PGEO PTBA PTPP PWON SCMA SIDO SMGR SMRA SRTG TINS TLKM TOWR TPIA UNTR UNVR AALI BSDE CMRY CLEO DMAS ENRG FILM GJTL HMSP IMAS INDY KAEF KIJA LPKR MAPA MLPT MTEL RALS SSIA TKIM TBIG ULTJ WOOD WTON".split(" ");
+const N=(v,d)=>Number.isFinite(v)?v:d;
+function fromScan(d){const miss=[d.roe,d.npm,d.der,d.rg,d.eg,d.pbv].some(v=>!Number.isFinite(v));return{t:d.t,sec:d.sec,px:N(d.px,0),mc:N(d.mc,0),roe:N(d.roe,0),npm:N(d.npm,0),der:N(d.der,9),rg:N(d.rg,0),eg:N(d.eg,0),per:N(d.per,0),pbv:N(d.pbv,99),roic:N(d.roic,0),f:N(d.f,0),val:N(d.val,null),hi:d.hi,miss}}
+let stop=false;
+const $=id=>document.getElementById(id);
+function mk(a){const v=a[13];return{t:String(a[0]).trim().toUpperCase(),sec:a[1],px:+a[2],mc:+a[3],roe:+a[4],npm:+a[5],der:+a[6],rg:+a[7],eg:+a[8],per:+a[9],pbv:+a[10],roic:+a[11],f:+a[12]||0,val:v===undefined||v===""||isNaN(+v)?null:+v}}
+const cl=(v,m)=>Math.max(0,Math.min(v/m,1));
+function score(r){const q=(cl(r.roe,20)*15+cl(r.npm,15)*7+(r.der<=.5?8:r.der<=1?5:r.der<=2?2:0))/30;
+const g=(cl(r.rg,20)*15+cl(r.eg,25)*20)/35;const peg=r.eg>0&&r.per>0?r.per/r.eg:null;
+const v=((peg==null?0:peg<=1?12:peg<=1.5?8:peg<=2?4:0)+(r.pbv<=3?8:r.pbv<=5?4:0))/20;
+const s=(r.mc<3?15:r.mc<10?11:r.mc<30?6:2)/15,p=Math.min(r.f,9)/9,fr=[q,g,v,s,p],sw=W.reduce((a,b)=>a+b,0);
+return{peg,s:sw?+(fr.reduce((a,x,i)=>a+x*W[i],0)/sw*100).toFixed(1):0}}
+function calc(){rows.forEach(r=>{const o=score(r);r.peg=o.peg;r.s=o.s;const ok=r.f>=5&&(r.val==null||r.val>=1);
+r.lb=r.s>=70&&ok?"Kandidat kuat":r.s>=55?"Pantau":"Lewati";r.hi52=r.hi?(r.px/r.hi-1)*100:null;
+r.rf=[r.val!=null&&r.val<1?"Likuiditas rendah":"",r.der>2?"DER tinggi":"",r.eg<0?"Laba turun":"",r.f<4?"F-Score lemah":"",r.miss?"Data tidak lengkap":""].filter(Boolean).join(", ")||"–"});
+const rk=(key,fn)=>[...rows].sort((a,b)=>fn(b)-fn(a)).forEach((r,i)=>r[key]=i+1);
+rk("_e",r=>r.per>0?1/r.per:-1);rk("_o",r=>r.roic);rows.forEach(r=>r.mf=r._e+r._o)}
+const f=(v,d=1)=>v==null||isNaN(v)?"–":(+v).toLocaleString("id-ID",{maximumFractionDigits:d});
+function render(){calc();const g=id=>$(id).value,x=g("fx"),q=g("fq").toUpperCase(),fl=+g("fl");
+let a=rows.filter(r=>r.s>=+g("fs")&&r.roe>=+g("fr")&&r.der<=+g("fd")&&r.per<=+g("fp")&&r.mc<=+g("fm")&&r.f>=+g("ff")&&(fl==0||(r.val!=null&&r.val>=fl))&&(!x||r.sec==x)&&r.t.includes(q));
+a.sort((p,c)=>((p[sk]??-1e9)>(c[sk]??-1e9)?1:-1)*sd*(sk=="t"||sk=="sec"||sk=="lb"||sk=="rf"||sk=="mf"?-1:1));
+$("tb").innerHTML=a.map(r=>`<tr><td><b>${r.t}</b></td><td>${r.sec}</td><td>${f(r.px,0)}</td><td>${f(r.mc)}</td><td>${f(r.roe)}</td><td>${f(r.npm)}</td><td>${f(r.der,2)}</td><td>${f(r.rg)}</td><td>${f(r.eg)}</td><td>${f(r.per)}</td><td>${f(r.peg,2)}</td><td>${f(r.pbv,2)}</td><td>${f(r.roic)}</td><td>${r.f}/9</td><td>${f(r.val)}</td><td>${r.mf}</td><td>${f(r.hi52)}</td><td class="sc"><span class="bar2" style="width:${r.s*.6}px"></span>${f(r.s)}</td><td><span class="bg ${r.lb=="Kandidat kuat"?"k":r.lb=="Pantau"?"m":"l"}">${r.lb}</span></td><td style="text-align:left;color:var(--mu)">${r.rf}</td></tr>`).join("")||`<tr><td colspan=20>Tidak ada saham yang lolos filter. Longgarkan batas di atas.</td></tr>`;
+const s=$("fx"),cur=s.value;s.innerHTML='<option value="">Semua</option>'+[...new Set(rows.map(r=>r.sec))].sort().map(e=>`<option ${e==cur?"selected":""}>${e}</option>`).join("");
+$("ws").textContent=`Total bobot ${W.reduce((a,b)=>a+b,0)}, dinormalisasi ke 100`;
+localStorage.setItem(K,JSON.stringify(rows));localStorage.setItem(K+"w",JSON.stringify(W))}
+$("wp").innerHTML=WN.map((n,i)=>`<label>${n}: <b id="wv${i}"></b><input type="range" id="w${i}" min="0" max="50"></label>`).join("");
+const sync=()=>WN.forEach((_,i)=>{$("w"+i).value=W[i];$("wv"+i).textContent=W[i]});
+$("ps").innerHTML='<option value="">Kustom</option>'+Object.keys(PR).map(k=>`<option>${k}</option>`).join("");
+$("ps").value=Object.keys(PR).find(k=>PR[k].join()==W.join())||"";sync();
+$("ps").onchange=e=>{if(PR[e.target.value]){W=[...PR[e.target.value]];sync();render()}};
+WN.forEach((_,i)=>$("w"+i).oninput=e=>{W[i]=+e.target.value;$("wv"+i).textContent=W[i];$("ps").value="";render()});
+$("hd").innerHTML=H.map(h=>`<th data-k="${h[0]}">${h[1]}</th>`).join("");
+$("hd").onclick=e=>{const k=e.target.dataset.k;if(!k)return;sd=sk==k?-sd:-1;sk=k;render()};
+document.querySelectorAll(".bar input,.bar select").forEach(e=>e.oninput=render);
+$("up").onclick=async()=>{if(!window.api){alert("Update harga hanya jalan di aplikasi EXE (Electron).");return}
+const t=$("up");t.disabled=1;let n=0;for(const r of rows){t.textContent=`Memuat ${r.t}…`;const d=await window.api.price(r.t);if(d){r.px=d.px;r.hi=d.hi;if(d.val!=null)r.val=d.val;n++}}
+t.disabled=0;t.textContent="Update harga";$("note").textContent=`Harga dan nilai transaksi diperbarui untuk ${n} dari ${rows.length} saham. Fundamental dan F-Score tetap dari CSV Anda.`;render()};
+$("sc").onclick=async()=>{const b=$("sc");if(b.dataset.run){stop=true;return}
+if(!window.api){alert("Cari otomatis hanya jalan di aplikasi EXE (Electron).");return}
+const ex=$("fe").value.split(/[ ,;]+/).map(s=>s.trim().toUpperCase()).filter(Boolean),L=[...new Set([...ex,...UNI])],old=rows;
+b.dataset.run=1;stop=false;rows=[];let ok=0;
+for(let i=0;i<L.length&&!stop;i++){b.textContent=`Berhenti (${i+1}/${L.length} ${L[i]})`;
+try{const d=await window.api.scan(L[i]);if(d&&d.px){rows.push(fromScan(d));ok++}}catch(e){}
+if(i%4==3)render()}
+delete b.dataset.run;b.textContent="Cari otomatis";if(!ok)rows=old;
+$("note").textContent=ok?`Pindai selesai: ${ok} dari ${L.length} kode berhasil. Data dari Yahoo Finance, cek ulang sebelum membeli.`:"Pindai gagal: tidak ada data masuk. Periksa koneksi internet, lalu coba lagi. Data lama dipertahankan.";render()};
+$("im").onclick=()=>$("fi").click();
+$("fi").onchange=e=>{const rd=new FileReader();rd.onload=()=>{const n=rd.result.trim().split(/\r?\n/).slice(1).filter(Boolean).map(l=>mk(l.split(/[,;]/))).filter(r=>r.t&&!isNaN(r.px));
+if(!n.length){alert("CSV tidak terbaca. Pakai format: ticker,sektor,harga,mcap_T,roe,npm,der,rev_cagr,eps_cagr,per,pbv,roic,fscore,nilai_transaksi_M");return}
+rows=n;$("note").textContent=`${n.length} saham dari CSV dimuat.`;render()};rd.readAsText(e.target.files[0])};
+$("ex").onclick=()=>{const c="ticker,sektor,harga,mcap_T,roe,npm,der,rev_cagr,eps_cagr,per,pbv,roic,fscore,nilai_transaksi_M\n"+rows.map(r=>[r.t,r.sec,r.px,r.mc,r.roe,r.npm,r.der,r.rg,r.eg,r.per,r.pbv,r.roic,r.f,r.val??""].join(",")).join("\n");
+const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([c],{type:"text/csv"}));a.download="screener.csv";a.click()};
+$("rs").onclick=()=>{if(confirm("Kembalikan data contoh dan bobot standar?")){rows=SAMPLE.map(mk);W=[...PR["Seimbang"]];$("ps").value="Seimbang";sync();render()}};
+render();
+</script></body></html>

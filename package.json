@@ -1,0 +1,15 @@
+{
+  "name": "idx-multibagger-screener",
+  "version": "1.0.0",
+  "description": "Screener saham Indonesia untuk kandidat multibagger",
+  "main": "main.js",
+  "author": "you",
+  "scripts": { "start": "electron .", "build": "electron-builder --win portable --publish never" },
+  "devDependencies": { "electron": "^31.0.0", "electron-builder": "^24.13.3" },
+  "build": {
+    "appId": "com.local.idxmultibagger",
+    "productName": "IDX Multibagger Screener",
+    "files": ["index.html", "main.js", "preload.js"],
+    "win": { "target": "portable" }
+  }
+}
